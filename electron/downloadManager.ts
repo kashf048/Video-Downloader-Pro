@@ -102,44 +102,72 @@ export class DownloadManager {
   }
 
   /**
-   * Parse yt-dlp formats into a simplified format list
+   * Parse yt-dlp formats into a comprehensive list
    */
   private parseFormats(formats: any[]): any[] {
-    const uniqueFormats: Map<string, any> = new Map();
+    const videoFormats: any[] = [];
+    const audioFormats: any[] = [];
 
-    for (const format of formats) {
-      const isAudioOnly = !format.vcodec || format.vcodec === 'none';
-      const hasVideo = !isAudioOnly && format.height;
+    for (const f of formats) {
+      const isAudioOnly = !f.vcodec || f.vcodec === 'none';
+      const isVideoOnly = !f.acodec || f.acodec === 'none';
+      const hasBoth = f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none';
+
+      const filesize = f.filesize || f.filesize_approx || 0;
 
       if (isAudioOnly) {
-        // Best audio format per extension
-        const ext = format.ext || 'audio';
-        const normalizedExt = ['m4a', 'mp3', 'aac', 'opus', 'ogg'].includes(ext) ? ext : 'audio';
-        const key = `audio-${normalizedExt}`;
-        if (!uniqueFormats.has(key)) {
-          uniqueFormats.set(key, {
-            id: format.format_id,
-            format: `${normalizedExt.toUpperCase()} Audio`,
-            ext: normalizedExt === 'audio' ? 'm4a' : normalizedExt,
-            filesize: format.filesize,
-          });
-        }
-      } else if (hasVideo) {
-        // Video format — keep best bitrate per resolution
-        const key = `video-${format.height}p`;
-        if (!uniqueFormats.has(key)) {
-          uniqueFormats.set(key, {
-            id: format.format_id,
-            format: `MP4 ${format.height}p`,
-            ext: 'mp4',
-            resolution: `${format.height}p`,
-            filesize: format.filesize,
-          });
-        }
+        // Only keep the best audio format per extension (preferring m4a or mp3)
+        const ext = f.ext || 'audio';
+        const quality = f.abr || f.tbr || 0;
+        audioFormats.push({
+          id: f.format_id,
+          format: `${ext.toUpperCase()} Audio`,
+          ext: ext,
+          quality: quality,
+          filesize: filesize,
+        });
+      } else if (f.height) {
+        // Keep track of all distinct resolutions
+        videoFormats.push({
+          id: f.format_id,
+          format: `MP4 ${f.height}p`,
+          ext: f.ext || 'mp4',
+          resolution: `${f.height}p`,
+          height: f.height,
+          filesize: filesize,
+          tbr: f.tbr || 0,
+          quality_label: f.format_note || `${f.height}p`,
+        });
       }
     }
 
-    return Array.from(uniqueFormats.values());
+    // Sort audio by quality and keep only the best one per extension or unique bitrate
+    const sortedAudio = audioFormats.sort((a, b) => b.quality - a.quality);
+    const uniqueAudioMap = new Map();
+    for (const a of sortedAudio) {
+      if (!uniqueAudioMap.has(a.ext)) {
+        uniqueAudioMap.set(a.ext, a);
+      }
+    }
+
+    // Sort video by height (descending) and bitrate (descending)
+    const sortedVideo = videoFormats.sort((a, b) => {
+      if (b.height !== a.height) return b.height - a.height;
+      return b.tbr - a.tbr;
+    });
+
+    // Keep only the best bitrate for each resolution
+    const bestVideoPerResolution = new Map();
+    for (const v of sortedVideo) {
+      if (!bestVideoPerResolution.has(v.resolution)) {
+        bestVideoPerResolution.set(v.resolution, v);
+      }
+    }
+
+    return [
+      ...Array.from(bestVideoPerResolution.values()),
+      ...Array.from(uniqueAudioMap.values()),
+    ];
   }
 
   /**
@@ -167,11 +195,13 @@ export class DownloadManager {
       const args = [
         url,
         '-f',
-        formatId,
+        formatId === 'best' ? 'bestvideo+bestaudio/best' : `${formatId}+bestaudio/best`,
         '-o',
         outputTemplate,
+        '--newline',
+        '--progress',
         '--progress-template',
-        '[download] %(progress)s',
+        '[download] %(progress)s%(progress.eta)s%(progress.speed)s',
         '--no-warnings',
         '--no-playlist',
       ];
@@ -193,14 +223,22 @@ export class DownloadManager {
         if (progressMatch) {
           const progress = parseFloat(progressMatch[1]);
 
-          const speedMatch = output.match(/at\s+([\d.]+\s*[KMG]?B\/s)/);
-          const etaMatch = output.match(/ETA\s+(\d+:\d+)/);
+          // With our custom template: [download] %(progress)s%(progress.eta)s%(progress.speed)s
+          // The output looks like: [download]  10.0% 00:05 1.2MiB/s
+          const parts = output.split(/\s+/).filter((p: string) => p.trim() !== '');
+          // parts might be ["[download]", "10.0%", "00:05", "1.2MiB/s"]
+          
+          let eta: string | undefined = undefined;
+          let speed: string | undefined = undefined;
+          
+          if (parts.length >= 3) eta = parts[2];
+          if (parts.length >= 4) speed = parts[3];
 
           onProgress({
             downloadId,
             progress,
-            speed: speedMatch ? speedMatch[1] : undefined,
-            eta: etaMatch ? etaMatch[1] : undefined,
+            speed: speed,
+            eta: eta,
           });
         }
 

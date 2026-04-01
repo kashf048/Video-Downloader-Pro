@@ -141,9 +141,18 @@ export default function Home() {
       return;
     }
 
-    if (!downloadFolder) {
-      setError('Please select a download folder first');
-      return;
+    let targetFolder = downloadFolder;
+    
+    // Auto-prompt for folder if not set
+    if (!targetFolder) {
+      logger.info('No download folder set, prompting user');
+      const folder = await ipcBridge.selectFolder();
+      if (!folder) {
+        setError('Please select a download folder to start the download');
+        return;
+      }
+      setDownloadFolder(folder);
+      targetFolder = folder;
     }
 
     const downloadId = `download-${Date.now()}`;
@@ -164,7 +173,7 @@ export default function Home() {
       addDownload(download);
       logger.info('Starting download', { downloadId, format, title: videoInfo.title });
 
-      await ipcBridge.startDownload(downloadId, originalUrl, format, downloadFolder);
+      await ipcBridge.startDownload(downloadId, originalUrl, format, targetFolder);
       updateDownload(downloadId, { status: 'downloading' });
       setSuccess(`Download started: ${videoInfo.title}`);
     } catch (err) {
