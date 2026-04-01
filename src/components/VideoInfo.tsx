@@ -1,4 +1,4 @@
-import { Download, Music, AlertCircle, Loader2 } from 'lucide-react';
+import { Download, Music, AlertCircle, Loader2, Clock, Video } from 'lucide-react';
 import type { VideoMetadata } from '@/types/ipc';
 
 interface VideoInfoProps {
