@@ -73,7 +73,18 @@ export default function Home() {
       updateDownload(data.downloadId, {
         status: 'completed',
         filePath: data.filePath,
+        progress: 100,
       });
+
+      // System Notification
+      if (Notification.permission === 'granted') {
+        const download = downloads.find(d => d.id === data.downloadId);
+        new Notification('Download Complete', {
+          body: `"${download?.title || 'Video'}" has been downloaded.`,
+          icon: download?.thumbnail,
+        });
+      }
+
       setSuccess('Download completed successfully!');
       logger.info('Download completed', { downloadId: data.downloadId });
     });
@@ -135,7 +146,7 @@ export default function Home() {
     }
   };
 
-  const handleDownload = async (format: string) => {
+  const handleDownload = async (format: string, qualityLabel: string) => {
     if (!videoInfo) {
       setError('No video information available');
       return;
@@ -155,6 +166,11 @@ export default function Home() {
       targetFolder = folder;
     }
 
+    // Request notification permission if not granted
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
     const downloadId = `download-${Date.now()}`;
     const download = {
       id: downloadId,
@@ -163,6 +179,7 @@ export default function Home() {
       thumbnail: videoInfo.thumbnail,
       duration: videoInfo.duration,
       selectedFormat: format,
+      qualityLabel: qualityLabel,
       status: 'pending' as const,
       progress: 0,
       timestamp: Date.now(),

@@ -101,11 +101,11 @@ export default function DownloadList({
                     <h4 className="font-medium text-white truncate">{download.title}</h4>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className={`text-xs px-2 py-1 rounded-full ${getStatusBadgeColor(download.status)}`}>
-                        {getStatusText(download.status)}
+                        {download.status === 'completed' ? 'Download Complete' : getStatusText(download.status)}
                       </span>
-                      {download.selectedFormat && (
-                        <span className="text-xs text-slate-400">
-                          Format: {download.selectedFormat}
+                      {download.qualityLabel && (
+                        <span className="text-xs text-slate-200 bg-slate-700/50 px-2 py-0.5 rounded border border-slate-600/50">
+                          {download.qualityLabel}
                         </span>
                       )}
                     </div>
@@ -176,7 +176,7 @@ export default function DownloadList({
               </div>
             </div>
 
-            {/* Progress Bar */}
+            {/* Progress Bar & Details */}
             {(download.status === 'downloading' || download.status === 'paused') && (
               <div className="space-y-2">
                 <div className="w-full bg-slate-900/50 rounded-full h-2 overflow-hidden border border-slate-700/50">
@@ -186,12 +186,31 @@ export default function DownloadList({
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>{download.progress || 0}%</span>
-                  <div className="flex gap-3">
-                    {download.speed && <span>{download.speed}</span>}
-                    {download.eta && <span>ETA: {download.eta}</span>}
+                  <div className="flex gap-2 font-medium">
+                    <span className="text-blue-400">{download.progress || 0}% Completed</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="text-slate-500">{100 - (download.progress || 0)}% Remaining</span>
+                  </div>
+                  <div className="flex gap-3 bg-slate-900/40 px-3 py-1 rounded-full border border-slate-700/30">
+                    {download.speed && (
+                      <span className="flex items-center gap-1">
+                        <span className="text-blue-500 opacity-50">↓</span> {download.speed}
+                      </span>
+                    )}
+                    {download.eta && (
+                      <span className="flex items-center gap-1 border-l border-slate-700/50 pl-3">
+                        <Clock size={10} className="text-blue-500 opacity-50" /> {download.eta} ETA
+                      </span>
+                    )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Completed state view */}
+            {download.status === 'completed' && (
+              <div className="bg-green-500/5 border border-green-500/10 rounded-lg p-2 mt-1">
+                <p className="text-[10px] text-green-400/60 uppercase tracking-widest font-bold text-center">Successfully Downloaded in {download.qualityLabel}</p>
               </div>
             )}
 
