@@ -8,6 +8,7 @@ export interface Download {
   thumbnail?: string;
   duration?: number;
   selectedFormat: string;
+  qualityLabel?: string;
   status: 'pending' | 'downloading' | 'completed' | 'failed' | 'paused';
   progress: number;
   speed?: string;

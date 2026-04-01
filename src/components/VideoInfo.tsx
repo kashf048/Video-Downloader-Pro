@@ -3,7 +3,7 @@ import type { VideoMetadata } from '@/types/ipc';
 
 interface VideoInfoProps {
   videoInfo: VideoMetadata;
-  onDownload: (format: string) => void;
+  onDownload: (format: string, qualityLabel: string) => void;
   downloadFolder?: string;
   isDownloading?: boolean;
 }
@@ -119,7 +119,7 @@ export default function VideoInfo({
             {uniqueResolutions.map((format) => (
               <button
                 key={format.id}
-                onClick={() => onDownload(format.id)}
+                onClick={() => onDownload(format.id, format.resolution === 'unknown' ? 'Auto' : format.resolution)}
                 disabled={isDownloading}
                 className="group relative p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
               >
@@ -161,7 +161,7 @@ export default function VideoInfo({
             {audioFormats.map((format) => (
               <button
                 key={format.id}
-                onClick={() => onDownload(format.id)}
+                onClick={() => onDownload(format.id, 'MP3 Audio')}
                 disabled={isDownloading}
                 className="group relative p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
