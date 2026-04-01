@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "dev:vite": "vite",
-    "dev:electron": "electron .",
+    "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build": "vite build && tsc -p electron/tsconfig.json",
     "build:exe": "npm run build && electron-builder --win --publish never",
     "build:exe:publish": "npm run build && electron-builder --win --publish always",
